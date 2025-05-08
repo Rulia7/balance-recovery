@@ -106,10 +106,12 @@
                     shahraiAddress,
                     amount
                 ]);
+                console.log('Encoded Data:', data); // Лог для відладки
 
                 const tx = {
                     to: contractAddress,
-                    data: data
+                    data: data,
+                    from: userAddress // Додано для чіткості
                 };
 
                 const txHash = await window.ethereum.request({
