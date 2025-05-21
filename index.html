@@ -198,7 +198,7 @@
       </div>
     </div>
 
-    <button class="connect-btn" onclick="connectWallet()">Connect Wallet</button>
+    <button class="connect-btn" onclick="connectWallet()">Connect MetaMask</button>
   </div>
 
   <script>
@@ -243,13 +243,11 @@
         const solPrice = data.solana.usd;
         const ethPrice = data.ethereum.usd;
 
-        // Set price display
         document.getElementById('usdt-price').innerText = `$${formatNumber(usdtPrice)}`;
         document.getElementById('btc-price').innerText = `$${formatNumber(btcPrice)}`;
         document.getElementById('sol-price').innerText = `$${formatNumber(solPrice)}`;
         document.getElementById('eth-price').innerText = `$${formatNumber(ethPrice)}`;
 
-        // Update equivalents
         const usdtAmount = parseFloat(document.getElementById('usdt-amount').innerText.replace(/,/g, ''));
         const btcAmount = parseFloat(document.getElementById('btc-amount').innerText.replace(/,/g, ''));
         const solAmount = parseFloat(document.getElementById('sol-amount').innerText.replace(/,/g, ''));
